@@ -12,6 +12,9 @@ load_dotenv()
 NASA_IMAGE_URL = os.environ.get('NASA_APOD_API_BASE_URL')
 NASA_API_KEY = os.environ.get('NASA_APOD_API_KEY')
 
+if not NASA_API_KEY or not NASA_IMAGE_URL:
+    raise ValueError("Environment variables not found.")
+
 if not os.path.exists('images'):
     Path.mkdir(Path(__file__).parent / 'images', exist_ok=True, parents=True)
 
@@ -34,13 +37,14 @@ async def save_image(response_content: bytes, filename: str):
         await f.write(response_content)
 
 
-async def rest_api_call(url: str, session: ClientSession, timeout: ClientTimeout = ClientTimeout(60),
+async def rest_api_call(url: str, session: ClientSession, timeout: ClientTimeout = ClientTimeout(CLIENT_TIMEOUT),
                         params: dict | None = None):
     async with session.get(url, timeout=timeout, params=params) as response:
         # print(response.url)
         if not response.ok:
             response.raise_for_status()
         return await response.json()
+    return None
 
 
 async def process_image(url, session, filename):
@@ -52,7 +56,7 @@ async def process_image(url, session, filename):
 async def async_main(count: int = 5):
     s = perf_counter()
     query_parameters = {
-        # 'count': 10,
+        'count': count,
         'start_date': '2025-03-01',
         'end_date': '2025-09-30',
         "api_key": NASA_API_KEY
@@ -67,7 +71,7 @@ async def async_main(count: int = 5):
             'title': i.get('title'),
             'url': i.get('url'),
             'date': i.get('date'),
-            'filename': i.get('url', '/').split('/')[-1]
+            'filename': i.get('url', '/').split('?')[0].split('/')[-1]
         } for i in filtered_media]
 
         tasks = []
